@@ -1,0 +1,39 @@
+# Everything in one command: `docker compose up --build`, then open http://localhost:8000
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: pricewatch
+      POSTGRES_PASSWORD: pricewatch
+      POSTGRES_DB: pricewatch
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pricewatch"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  web:
+    build: .
+    environment:
+      PRICEWATCH_DATABASE_URL: postgresql+asyncpg://pricewatch:pricewatch@db:5432/pricewatch
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Checks prices every 6 hours and sends alerts (set PRICEWATCH_ALERT_WEBHOOK_URL in a .env file).
+  worker:
+    build: .
+    command: ["pricewatch", "watch", "--every", "360"]
+    environment:
+      PRICEWATCH_DATABASE_URL: postgresql+asyncpg://pricewatch:pricewatch@db:5432/pricewatch
+      PRICEWATCH_ALERT_WEBHOOK_URL: ${PRICEWATCH_ALERT_WEBHOOK_URL:-}
+    depends_on:
+      web:
+        condition: service_healthy
+
+volumes:
+  pgdata:
