@@ -1,0 +1,7 @@
+tests/
+.github/
+.venv/
+*.md
+!README.md
+Dockerfile
+docker-compose.yml

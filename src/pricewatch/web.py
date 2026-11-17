@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import hmac
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.templating import Jinja2Templates
 from markupsafe import Markup
@@ -17,10 +18,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from . import charts
 from .analytics import daily_series, product_stats
+from .config import get_settings
 from .db import SessionLocal
+from .demo import ensure_demo_products
 from .demo_shop import ROBOTS_TXT
 from .demo_shop import router as demo_shop_router
+from .fetch import Fetcher
 from .models import PriceCheck
+from .notify import send_events
+from .tracker import run_checks
 
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 
@@ -101,6 +107,42 @@ async def product_page(request: Request, product_id: int, session: Session, days
     return templates.TemplateResponse(
         request, "product.html", {"s": s, "chart": chart, "recent": recent, "days": days, "points": len(series)}
     )
+
+
+# ---- scheduled checks (Vercel Cron, or any cron service) ----------------------------------------
+
+
+async def get_fetcher() -> AsyncIterator[Fetcher]:
+    async with Fetcher() as fetcher:
+        yield fetcher
+
+
+@app.get("/api/cron/check", include_in_schema=False)
+async def cron_check(
+    request: Request,
+    session: Session,
+    fetcher: Annotated[Fetcher, Depends(get_fetcher)],
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict:
+    settings = get_settings()
+    expected = f"Bearer {settings.cron_secret}" if settings.cron_secret else None
+    if expected is None or not hmac.compare_digest((authorization or "").encode(), expected.encode()):
+        raise HTTPException(401, "Unauthorized")
+
+    added = 0
+    if settings.demo_mode:
+        added = await ensure_demo_products(session, str(request.base_url))
+    result = await run_checks(session, fetcher)
+    await session.commit()
+    sent = await send_events(settings.alert_webhook_url, result.events) if settings.alert_webhook_url else 0
+    return {
+        "checked": result.checked,
+        "succeeded": result.succeeded,
+        "failed": result.failed,
+        "events": len(result.events),
+        "alerts_sent": sent,
+        "demo_products_added": added,
+    }
 
 
 # ---- JSON API ---------------------------------------------------------------------------------

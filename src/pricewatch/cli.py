@@ -14,7 +14,6 @@ from sqlalchemy.exc import IntegrityError
 
 from .config import get_settings
 from .db import engine, session_scope
-from .demo_shop import PRODUCTS as DEMO_PRODUCTS
 from .events import EventKind
 from .fetch import Fetcher
 from .models import PriceCheck, Product
@@ -176,26 +175,11 @@ def remove(product_id: int):
 @app.command("add-demo")
 def add_demo(base_url: Annotated[str, typer.Option(help="Where the demo shop runs")] = "http://127.0.0.1:8001"):
     """Track all products of the bundled demo shop (targets about 12 % below the usual price)."""
+    from .demo import ensure_demo_products
 
     async def go():
-        added = 0
         async with session_scope() as s:
-            existing = set(await s.scalars(select(Product.url)))
-            for p in DEMO_PRODUCTS:
-                url = f"{base_url.rstrip('/')}/shop/p/{p.slug}"
-                if url in existing:
-                    continue
-                s.add(
-                    Product(
-                        url=url,
-                        name=p.name,
-                        selector=".price-now" if p.markup == "plain" else None,
-                        default_currency="EUR",
-                        target_price=(p.base_price * Decimal("0.88")).quantize(Decimal("1")),
-                    )
-                )
-                added += 1
-        return added
+            return await ensure_demo_products(s, base_url)
 
     typer.echo(f"Added {_run(go())} demo products.")
 
