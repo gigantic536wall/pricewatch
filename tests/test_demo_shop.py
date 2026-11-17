@@ -27,7 +27,7 @@ def test_prices_stay_in_a_realistic_range():
 def test_tracker_reads_every_markup_style():
     """The extractor finds the right price on all demo pages, whatever the markup."""
     for p in PRODUCTS:
-        html = client.get(f"/p/{p.slug}", params={"day": DAY.isoformat()}).text
+        html = client.get(f"/shop/p/{p.slug}", params={"day": DAY.isoformat()}).text
         result = extract_price(html, selector=".price-now", default_currency="EUR")
         expected_price, expected_stock = price_on(p, DAY)
         assert result.price == expected_price, p.slug
@@ -38,8 +38,8 @@ def test_tracker_reads_every_markup_style():
 
 
 def test_unknown_product_and_bad_day():
-    assert client.get("/p/nope").status_code == 404
-    assert client.get(f"/p/{PRODUCTS[0].slug}", params={"day": "yesterday"}).status_code == 400
+    assert client.get("/shop/p/nope").status_code == 404
+    assert client.get(f"/shop/p/{PRODUCTS[0].slug}", params={"day": "yesterday"}).status_code == 400
 
 
 def test_robots_txt():

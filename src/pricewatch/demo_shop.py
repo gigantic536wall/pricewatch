@@ -14,7 +14,7 @@ from datetime import UTC, date, datetime
 from decimal import ROUND_HALF_UP, Decimal
 from html import escape
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import APIRouter, FastAPI, HTTPException, Query
 from fastapi.responses import HTMLResponse, PlainTextResponse
 
 
@@ -116,34 +116,44 @@ def _page(title: str, head: str, body: str) -> str:
     )
 
 
-def create_app() -> FastAPI:
-    app = FastAPI(title="Kaffeewerk demo shop", docs_url=None, redoc_url=None)
+ROBOTS_TXT = "User-agent: *\nDisallow: /shop/cart\nAllow: /\n"
 
-    def today(day: str | None) -> date:
-        if day is None:
-            return datetime.now(UTC).date()
-        try:
-            return date.fromisoformat(day)
-        except ValueError as e:
-            raise HTTPException(400, "day must be YYYY-MM-DD") from e
+router = APIRouter(prefix="/shop", tags=["demo shop"])
+
+
+def _day(day: str | None) -> date:
+    if day is None:
+        return datetime.now(UTC).date()
+    try:
+        return date.fromisoformat(day)
+    except ValueError as e:
+        raise HTTPException(400, "day must be YYYY-MM-DD") from e
+
+
+@router.get("/", response_class=HTMLResponse)
+def shop_index(day: str | None = Query(None)) -> str:
+    d = _day(day)
+    items = "".join(
+        f'<li><a href="/shop/p/{p.slug}">{escape(p.name)}</a> – {_de(price_on(p, d)[0])} €</li>' for p in PRODUCTS
+    )
+    return _page("Shop", "", f"<h1>Kaffeewerk</h1><ul>{items}</ul>")
+
+
+@router.get("/p/{slug}", response_class=HTMLResponse)
+def shop_product(slug: str, day: str | None = Query(None, description="Simulate another day, YYYY-MM-DD")) -> str:
+    p = BY_SLUG.get(slug)
+    if p is None:
+        raise HTTPException(404, "Produkt nicht gefunden")
+    return render_product(p, _day(day))
+
+
+def create_app() -> FastAPI:
+    """The demo shop on its own (the main app also includes the router)."""
+    app = FastAPI(title="Kaffeewerk demo shop", docs_url=None, redoc_url=None)
+    app.include_router(router)
 
     @app.get("/robots.txt", response_class=PlainTextResponse)
     def robots() -> str:
-        return "User-agent: *\nDisallow: /shop/cart\nAllow: /\n"
-
-    @app.get("/", response_class=HTMLResponse)
-    def index(day: str | None = Query(None)) -> str:
-        d = today(day)
-        items = "".join(
-            f'<li><a href="/shop/p/{p.slug}">{escape(p.name)}</a> – {_de(price_on(p, d)[0])} €</li>' for p in PRODUCTS
-        )
-        return _page("Shop", "", f"<h1>Kaffeewerk</h1><ul>{items}</ul>")
-
-    @app.get("/p/{slug}", response_class=HTMLResponse)
-    def product(slug: str, day: str | None = Query(None, description="Simulate another day, YYYY-MM-DD")) -> str:
-        p = BY_SLUG.get(slug)
-        if p is None:
-            raise HTTPException(404, "Produkt nicht gefunden")
-        return render_product(p, today(day))
+        return ROBOTS_TXT
 
     return app
