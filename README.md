@@ -2,7 +2,7 @@
 
 Tracks product prices on online shops, stores the full price history in PostgreSQL and sends an alert when a price drops below your target.
 
-> 🚧 Work in progress: webhook alerts, dashboard and live demo are coming next.
+> 🚧 Work in progress: Docker, CI and a live demo are coming next.
 
 ## Highlights
 
@@ -13,6 +13,10 @@ Tracks product prices on online shops, stores the full price history in PostgreS
 - **Resilient:** retries timeouts, `429` and `5xx` with exponential backoff and honours `Retry-After`; never retries `404`.
 - **Smart alerts:** fires once when a price crosses your target (not on every run), on big drops (≥ 10 %) and when a product is back in stock.
 - **Clean data model:** every check is stored, a database constraint guarantees each check has either a price or an error.
+- **Alerts where you already are:** Discord, Slack, ntfy (push to your phone) or any webhook (Zapier, n8n, Make) as JSON.
+- **Dashboard** with 30-day ranges, 7-day change, all-time low and price history charts (server-rendered SVG: no JavaScript library, no CDN).
+- **SQL analytics in PostgreSQL:** CTEs, `DISTINCT ON`, time-window aggregates; see [`analytics.py`](src/pricewatch/analytics.py).
+- **JSON API** with OpenAPI docs at `/api/docs`.
 - **Demo shop included** ("Kaffeewerk"): a small fake shop with daily changing prices in all three markup styles, so the project can be demoed and tested without scraping real websites.
 
 ## Tech stack
@@ -28,8 +32,8 @@ Python 3.13 · asyncio · FastAPI · SQLAlchemy 2 (async) · PostgreSQL · Alemb
 - [x] Polite fetcher: robots.txt, per-host delay, concurrency limit, retries + tests
 - [x] Tracker with price events and a CLI
 - [x] Integration tests against PostgreSQL and the in-process demo shop
-- [ ] Price-drop alerts (webhooks: Discord, Slack, ntfy …)
-- [ ] Dashboard with price charts and SQL analytics
+- [x] Price-drop alerts: Discord, Slack, ntfy, generic JSON webhooks
+- [x] Dashboard with SVG price charts and SQL analytics, JSON API
 - [ ] Docker, CI and live demo
 
 ## Run locally
@@ -50,7 +54,11 @@ uv run pricewatch demo-shop             # terminal 1: shop on http://127.0.0.1:8
 uv run pricewatch add-demo              # terminal 2: track its 6 products
 uv run pricewatch check                 # fetch prices once
 uv run pricewatch list                  # latest prices and targets
+uv run pricewatch seed-history          # optional: 90 days of past prices for nicer charts
+uv run pricewatch serve                 # dashboard on http://127.0.0.1:8000
 ```
+
+Alerts: set `PRICEWATCH_ALERT_WEBHOOK_URL` in `.env` (Discord, Slack or ntfy URL). Run checks regularly with `uv run pricewatch watch --every 360` or a cron job calling `pricewatch check`.
 
 Track any product page:
 

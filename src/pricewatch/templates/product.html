@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ s.name or "Product" }} · PriceWatch{% endblock %}
+{% block content %}
+<p class="small"><a href="/" class="muted">← All products</a></p>
+<h1>{{ s.name or s.url }}</h1>
+<p class="muted small" style="word-break:break-all"><a href="{{ s.url }}" rel="nofollow noopener" target="_blank">{{ s.url }}</a></p>
+
+<dl class="card stats" style="margin:20px 0">
+  <div><dt>Current price</dt><dd>{{ s.price | money(s.currency) }}
+    {% if s.at_target %}<span class="badge target">target reached</span>{% endif %}</dd></div>
+  <div><dt>Change 7 days</dt>
+    <dd class="{% if s.change_7d is not none and s.change_7d < 0 %}down{% elif s.change_7d is not none and s.change_7d > 0 %}up{% endif %}">
+      {% if s.change_7d is none %}–{% else %}{{ "%+.1f" | format(s.change_7d) }} %{% endif %}</dd></div>
+  <div><dt>30-day average</dt><dd>{{ s.avg_30 | money(s.currency) }}</dd></div>
+  <div><dt>Lowest ever</dt><dd>{{ s.lowest | money(s.currency) }}</dd></div>
+  <div><dt>Your target</dt><dd>{{ s.target_price | money(s.currency) }}</dd></div>
+</dl>
+
+<div class="card" style="padding:16px 16px 8px">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+    <b>Price history</b>
+    <span class="ranges">
+      {% for d in [30, 90, 180] %}<a href="?days={{ d }}" class="{{ 'on' if d == days else '' }}">{{ d }} days</a>{% endfor %}
+    </span>
+  </div>
+  {{ chart }}
+  <p class="muted small">{{ points }} days with data · hover a point for the exact price · red points: sold out</p>
+</div>
+
+<h2 style="font-size:18px;margin:28px 0 10px">Latest checks</h2>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>Time (UTC)</th><th class="num">Price</th><th>Stock</th><th>Found via</th><th>Error</th></tr></thead>
+    <tbody>
+      {% for c in recent %}
+      <tr>
+        <td>{{ c.checked_at.strftime("%d %b %Y, %H:%M") }}</td>
+        <td class="num">{{ c.price | money(c.currency) }}</td>
+        <td>{% if c.in_stock == true %}in stock{% elif c.in_stock == false %}<span class="up">sold out</span>{% else %}<span class="muted">–</span>{% endif %}</td>
+        <td class="muted">{{ c.method or "–" }}</td>
+        <td class="up small">{{ c.error or "" }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="muted">No checks yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

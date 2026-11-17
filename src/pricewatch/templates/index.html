@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · PriceWatch{% endblock %}
+{% block content %}
+<h1>Tracked products</h1>
+<p class="muted">Current prices, 30-day range and change over the last week.</p>
+
+<div class="kpis">
+  <div class="card kpi"><span class="muted small">Products</span><b>{{ totals.products }}</b></div>
+  <div class="card kpi"><span class="muted small">At or below target</span><b>{{ totals.at_target }}</b></div>
+  <div class="card kpi"><span class="muted small">Last check failed</span><b>{{ totals.failing }}</b></div>
+  <div class="card kpi"><span class="muted small">Prices recorded</span><b>{{ "{:,}".format(totals.checks) }}</b></div>
+</div>
+
+{% if not stats %}
+<div class="card" style="padding:24px">
+  <p>No products yet. Add one from the command line:</p>
+  <pre>uv run pricewatch add "https://shop.example/product" --target 199</pre>
+</div>
+{% else %}
+<div class="card table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Product</th>
+        <th class="num">Price</th>
+        <th class="num">7 days</th>
+        <th>30 days</th>
+        <th class="num">30-day low – high</th>
+        <th class="num">Target</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in stats %}
+      <tr>
+        <td class="name">
+          <a href="/products/{{ s.id }}">{{ s.name or s.url }}</a>
+          {% if s.at_target %}<span class="badge target">target reached</span>
+          {% elif s.is_lowest %}<span class="badge low">lowest ever</span>{% endif %}
+          {% if s.in_stock == false %}<span class="badge warn">sold out</span>{% endif %}
+          {% if s.last_error %}<span class="badge warn" title="{{ s.last_error }}">last check failed</span>{% endif %}
+        </td>
+        <td class="num"><b>{{ s.price | money(s.currency) }}</b></td>
+        <td class="num {% if s.change_7d is not none and s.change_7d < 0 %}down{% elif s.change_7d is not none and s.change_7d > 0 %}up{% endif %}">
+          {% if s.change_7d is none %}–{% else %}{{ "%+.1f" | format(s.change_7d) }} %{% endif %}
+        </td>
+        <td>{{ sparks[s.id] }}</td>
+        <td class="num muted">{{ s.min_30 | money(s.currency) }} – {{ s.max_30 | money(s.currency) }}</td>
+        <td class="num">{{ s.target_price | money(s.currency) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

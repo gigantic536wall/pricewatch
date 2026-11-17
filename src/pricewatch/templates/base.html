@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}PriceWatch{% endblock %}</title>
+  <meta name="description" content="PriceWatch: price history, statistics and alerts for products in online shops.">
+  <style>
+    :root {
+      --bg: #f7f7f5; --card: #fff; --text: #1d1d1b; --muted: #6b6b66; --line: #e4e4df;
+      --accent: #0f766e; --accent-soft: #ccfbf1; --down: #15803d; --up: #b91c1c; --warn: #b45309; --warn-soft: #fef3c7;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #121212; --card: #1c1c1b; --text: #ededea; --muted: #9b9b95; --line: #2e2e2b;
+        --accent: #2dd4bf; --accent-soft: #134e4a; --down: #4ade80; --up: #f87171; --warn: #fbbf24; --warn-soft: #422006;
+      }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+    a { color: inherit; }
+    header { border-bottom: 1px solid var(--line); background: var(--card); }
+    .wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+    header .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 14px; padding-bottom: 14px; }
+    .brand { font-weight: 700; text-decoration: none; font-size: 17px; }
+    nav a { color: var(--muted); text-decoration: none; margin-left: 16px; font-size: 14px; }
+    nav a:hover { color: var(--text); }
+    main { padding: 24px 0 48px; }
+    h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -0.01em; }
+    .muted { color: var(--muted); }
+    .small { font-size: 13px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; }
+    .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 20px 0; }
+    .kpi { padding: 14px 16px; }
+    .kpi b { display: block; font-size: 24px; font-variant-numeric: tabular-nums; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+    th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+    th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 600; }
+    tr:last-child td { border-bottom: 0; }
+    td.num, th.num { text-align: right; }
+    td.name { white-space: normal; min-width: 200px; }
+    td.name a { font-weight: 600; text-decoration: none; }
+    td.name a:hover { text-decoration: underline; }
+    .down { color: var(--down); } .up { color: var(--up); }
+    .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px; margin-left: 6px; vertical-align: 1px; }
+    .badge.target { background: var(--accent-soft); color: var(--accent); }
+    .badge.low { background: var(--accent-soft); color: var(--accent); }
+    .badge.warn { background: var(--warn-soft); color: var(--warn); }
+    .spark polyline { fill: none; stroke-width: 1.6; stroke: var(--muted); }
+    .spark.down polyline { stroke: var(--down); } .spark.up polyline { stroke: var(--up); }
+    .chart { width: 100%; height: auto; display: block; }
+    .chart .grid { stroke: var(--line); }
+    .chart .axis { fill: var(--muted); font-size: 11px; }
+    .chart .line { fill: none; stroke: var(--accent); stroke-width: 2; }
+    .chart .area { fill: var(--accent); opacity: 0.08; }
+    .chart .dot { fill: var(--accent); opacity: 0; }
+    .chart .dot:hover { opacity: 1; }
+    .chart .dot.sold-out { fill: var(--up); opacity: 0.9; }
+    .chart .target { stroke: var(--warn); stroke-dasharray: 5 4; }
+    .chart .target-label { fill: var(--warn); font-size: 11px; font-weight: 600; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0; }
+    .stats div { padding: 12px 16px; border-right: 1px solid var(--line); }
+    .stats div:last-child { border-right: 0; }
+    .stats dt { font-size: 12px; color: var(--muted); }
+    .stats dd { margin: 2px 0 0; font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .ranges a { text-decoration: none; padding: 4px 10px; border-radius: 99px; font-size: 13px; color: var(--muted); }
+    .ranges a.on { background: var(--text); color: var(--bg); }
+    footer { color: var(--muted); font-size: 13px; padding: 24px 0; border-top: 1px solid var(--line); }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <a class="brand" href="/">📈 PriceWatch</a>
+      <nav>
+        <a href="/">Dashboard</a>
+        <a href="/shop/">Demo shop</a>
+        <a href="/api/docs">API</a>
+        <a href="https://github.com/gigantic536wall/pricewatch">GitHub</a>
+      </nav>
+    </div>
+  </header>
+  <main class="wrap">{% block content %}{% endblock %}</main>
+  <footer><div class="wrap">PriceWatch · Prices are checked politely: robots.txt, rate limits, clear User-Agent.</div></footer>
+</body>
+</html>

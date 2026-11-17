@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import CheckConstraint, ForeignKey, Index, Numeric, String, Text, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Numeric, String, Text, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -25,7 +25,7 @@ class Product(Base):
     # Send an alert when the price falls to or below this value.
     target_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
     active: Mapped[bool] = mapped_column(default=True)
-    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     checks: Mapped[list[PriceCheck]] = relationship(back_populates="product", cascade="all, delete-orphan")
 
@@ -39,7 +39,7 @@ class PriceCheck(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     product_id: Mapped[int] = mapped_column(ForeignKey("products.id", ondelete="CASCADE"))
-    checked_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
     currency: Mapped[str | None] = mapped_column(String(3))
     in_stock: Mapped[bool | None]

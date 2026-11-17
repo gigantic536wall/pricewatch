@@ -6,16 +6,19 @@ import asyncio
 import logging
 from decimal import Decimal, InvalidOperation
 from typing import Annotated
+from urllib.parse import urlsplit
 
 import typer
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
+from .config import get_settings
 from .db import engine, session_scope
 from .demo_shop import PRODUCTS as DEMO_PRODUCTS
 from .events import EventKind
 from .fetch import Fetcher
 from .models import PriceCheck, Product
+from .notify import send_events
 from .tracker import run_checks
 
 app = typer.Typer(help="PriceWatch: track prices of products in online shops.", no_args_is_help=True)
@@ -51,6 +54,9 @@ def add(
     target: Annotated[str | None, typer.Option(help="Alert when the price is at or below this value")] = None,
 ):
     """Start tracking a product page."""
+    parts = urlsplit(url)
+    if parts.scheme not in ("http", "https") or not parts.netloc:
+        raise typer.BadParameter("URL must start with http:// or https://", param_hint="URL")
 
     async def go():
         async with session_scope() as s:
@@ -104,25 +110,50 @@ def list_products():
         typer.echo(f"#{product.id:<3} {price:>12}{target}{stock}  {product.name or product.url}")
 
 
-@app.command()
-def check(ids: Annotated[list[int] | None, typer.Argument(help="Only these product ids")] = None):
-    """Fetch the current price of all active products once."""
-    logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(message)s")
+LABELS = {
+    EventKind.TARGET_REACHED: "🎯 Target reached",
+    EventKind.PRICE_DROP: "📉 Price drop",
+    EventKind.BACK_IN_STOCK: "📦 Back in stock",
+}
 
-    async def go():
-        async with Fetcher() as fetcher, session_scope() as s:
-            return await run_checks(s, fetcher, ids)
 
-    result = _run(go())
+async def _check_once(ids: list[int] | None) -> None:
+    async with Fetcher() as fetcher, session_scope() as s:
+        result = await run_checks(s, fetcher, ids)
     typer.echo(f"Checked {result.checked}: {result.succeeded} ok, {result.failed} failed.")
-    labels = {
-        EventKind.TARGET_REACHED: "🎯 Target reached",
-        EventKind.PRICE_DROP: "📉 Price drop",
-        EventKind.BACK_IN_STOCK: "📦 Back in stock",
-    }
     for e in result.events:
         change = f" ({e.change_percent:+}%)" if e.change_percent is not None else ""
-        typer.echo(f"{labels[e.kind]}: {e.product_name} now {e.price} {e.currency or ''}{change}")
+        typer.echo(f"{LABELS[e.kind]}: {e.product_name} now {e.price} {e.currency or ''}{change}")
+    webhook = get_settings().alert_webhook_url
+    if webhook and result.events:
+        sent = await send_events(webhook, result.events)
+        typer.echo(f"Sent {sent}/{len(result.events)} alerts.")
+
+
+@app.command()
+def check(ids: Annotated[list[int] | None, typer.Argument(help="Only these product ids")] = None):
+    """Fetch the current price of all active products once (and send alerts)."""
+    logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(message)s")
+    _run(_check_once(ids))
+
+
+@app.command()
+def watch(every: Annotated[int, typer.Option(help="Minutes between runs", min=5)] = 360):
+    """Check prices again and again, e.g. on a small server. Stop with Ctrl+C."""
+    logging.basicConfig(level=logging.WARNING, format="%(asctime)s %(levelname)s %(message)s")
+
+    async def loop():
+        while True:
+            try:
+                await _check_once(None)
+            except Exception:  # keep watching even if one run fails (e.g. database restart)
+                logging.exception("Check run failed")
+            await asyncio.sleep(every * 60)
+
+    try:
+        _run(loop())
+    except KeyboardInterrupt:
+        typer.echo("Stopped.")
 
 
 @app.command()
@@ -167,6 +198,30 @@ def add_demo(base_url: Annotated[str, typer.Option(help="Where the demo shop run
         return added
 
     typer.echo(f"Added {_run(go())} demo products.")
+
+
+@app.command("seed-history")
+def seed_history(days: Annotated[int, typer.Option(min=1, max=365)] = 90):
+    """Fill in past daily prices for demo-shop products (replaces their history)."""
+    from .seed import seed_demo_history
+
+    async def go():
+        async with session_scope() as s:
+            return await seed_demo_history(s, days)
+
+    typer.echo(f"Created {_run(go())} price checks for demo products.")
+
+
+@app.command()
+def serve(
+    host: str = "127.0.0.1",
+    port: Annotated[int, typer.Option(envvar="PORT")] = 8000,
+    reload: bool = False,
+):
+    """Run the web dashboard, JSON API and demo shop."""
+    import uvicorn
+
+    uvicorn.run("pricewatch.web:app", host=host, port=port, reload=reload, proxy_headers=True)
 
 
 @app.command("demo-shop")
