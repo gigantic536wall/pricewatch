@@ -2,7 +2,11 @@
 
 Tracks product prices on online shops, stores the full price history in PostgreSQL and sends an alert when a price drops below your target.
 
-> 🚧 Work in progress: Docker, CI and a live demo are coming next.
+**[▶ Live demo](https://pricewatch-two-smoky.vercel.app)** · [API docs](https://pricewatch-two-smoky.vercel.app/api/docs) · [Demo shop](https://pricewatch-two-smoky.vercel.app/shop/)
+
+[![CI](https://github.com/gigantic536wall/pricewatch/actions/workflows/ci.yml/badge.svg)](https://github.com/gigantic536wall/pricewatch/actions/workflows/ci.yml)
+
+The live demo tracks the bundled fictional shop "Kaffeewerk", whose prices change every day; a daily job checks them like a real shop.
 
 ## Highlights
 
@@ -21,7 +25,7 @@ Tracks product prices on online shops, stores the full price history in PostgreS
 
 ## Tech stack
 
-Python 3.13 · asyncio · FastAPI · SQLAlchemy 2 (async) · PostgreSQL · Alembic · httpx · selectolax · Typer · pytest · respx · Ruff · uv
+Python 3.13 · asyncio · FastAPI · Docker · GitHub Actions · Vercel · SQLAlchemy 2 (async) · PostgreSQL · Alembic · httpx · selectolax · Typer · pytest · respx · Ruff · uv
 
 ## Roadmap
 
@@ -34,7 +38,15 @@ Python 3.13 · asyncio · FastAPI · SQLAlchemy 2 (async) · PostgreSQL · Alemb
 - [x] Integration tests against PostgreSQL and the in-process demo shop
 - [x] Price-drop alerts: Discord, Slack, ntfy, generic JSON webhooks
 - [x] Dashboard with SVG price charts and SQL analytics, JSON API
-- [ ] Docker, CI and live demo
+- [x] Docker image + docker-compose (database, dashboard, worker)
+- [x] CI: lint, tests on PostgreSQL, migration check, full docker-compose smoke test
+- [x] Live demo on Vercel + Neon PostgreSQL (Frankfurt) with a daily cron check
+
+## Run with Docker
+
+```bash
+docker compose up --build   # dashboard on http://localhost:8000, worker checks every 6 hours
+```
 
 ## Run locally
 
